@@ -8,8 +8,8 @@ import javax.swing.*;
 import java.awt.*;
 
 public class MainFrame extends JFrame {
-    private final CardLayout card = new CardLayout();
-    private final JPanel content = new JPanel(card);
+    private CardLayout card;
+    private JPanel content;
     private Sidebar sidebar;
 
     // Keep references for refresh/navigation
@@ -26,17 +26,28 @@ public class MainFrame extends JFrame {
         getContentPane().setBackground(UIUtils.BG_DARK);
         setLayout(new BorderLayout());
 
-        // Initial screens (before login/signup)
+        initializePreLoginPanels();
+    }
+
+    /** Initializes the welcome/login/signup panels */
+    private void initializePreLoginPanels() {
+        card = new CardLayout();
+        content = new JPanel(card);
         content.setBackground(UIUtils.BG_DARK);
+
         content.add(new WelcomePanel(this::navigate), "Welcome");
         content.add(new LoginPanel(v -> onLoginSuccess(), this::navigate), "Login");
         content.add(new SignupPanel(v -> onSignupSuccess(), this::navigate), "Signup");
 
+        getContentPane().removeAll();
         add(content, BorderLayout.CENTER);
-        navigate("Welcome");
+
+        revalidate();
+        repaint();
+        card.show(content, "Welcome");
     }
 
-    // Called after successful login/signup
+    /** Initializes main panels after successful login/signup */
     private void setupMainApp() {
         getContentPane().removeAll();
         setLayout(new BorderLayout());
@@ -44,56 +55,44 @@ public class MainFrame extends JFrame {
         sidebar = new Sidebar(this::navigate);
         add(sidebar, BorderLayout.WEST);
 
-        // Initialize main panels
+        card = new CardLayout();
+        content = new JPanel(card);
+        content.setBackground(UIUtils.BG_DARK);
+
         dashboardPanel = new DashboardPanel();
         expensesPanel = new ExpensesPanel();
         incomePanel = new IncomePanel();
         budgetPanel = new BudgetPanel();
 
-        content.removeAll();
         content.add(dashboardPanel, "Dashboard");
         content.add(expensesPanel, "Expenses");
         content.add(incomePanel, "Income");
         content.add(budgetPanel, "Budget");
 
         add(content, BorderLayout.CENTER);
+
         revalidate();
         repaint();
-        navigate("Dashboard");
+        card.show(content, "Dashboard");
     }
 
-    // Handles sidebar and internal navigation
+    /** Navigation handler for sidebar + all screen transitions */
     private void navigate(String name) {
         if ("Logout".equals(name)) {
-            // Clear current user
             AppContext.setCurrentUser(null);
 
-            // Rebuild pre-login layout
-            getContentPane().removeAll();
-            setLayout(new BorderLayout());
-
-            JPanel freshContent = new JPanel(card);
-            freshContent.setBackground(UIUtils.BG_DARK);
-
-            freshContent.add(new WelcomePanel(this::navigate), "Welcome");
-            freshContent.add(new LoginPanel(v -> onLoginSuccess(), this::navigate), "Login");
-            freshContent.add(new SignupPanel(v -> onSignupSuccess(), this::navigate), "Signup");
-
-            add(freshContent, BorderLayout.CENTER);
-
-            revalidate();
-            repaint();
-
-            card.show(freshContent, "Welcome");
+            // Clean rebuild of pre-login layout
+            SwingUtilities.invokeLater(this::initializePreLoginPanels);
             return;
         }
 
-        // Refresh dashboard every time it’s opened
         if ("Dashboard".equals(name) && dashboardPanel != null) {
             dashboardPanel.refresh();
         }
 
-        card.show(content, name);
+        if (content != null) {
+            card.show(content, name);
+        }
     }
 
     private void onLoginSuccess() {

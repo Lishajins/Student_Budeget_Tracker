@@ -13,7 +13,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
-import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ExpensesPanel extends JPanel {
@@ -21,6 +21,7 @@ public class ExpensesPanel extends JPanel {
     private final ExpenseCategoryService categoryService = new ExpenseCategoryService();
     private JTable table;
     private DefaultTableModel model;
+    private final List<Integer> expenseIds = new ArrayList<>();
 
     public ExpensesPanel() {
         setLayout(new BorderLayout(0, 20));
@@ -44,7 +45,7 @@ public class ExpensesPanel extends JPanel {
         card.setPreferredSize(new Dimension(900, 400));
 
         // --- Table setup ---
-        String[] cols = {"ID", "Category", "Amount (₹)", "Description", "Date"};
+        String[] cols = {"Category", "Amount (₹)", "Description", "Date"};
         model = new DefaultTableModel(cols, 0);
         table = new JTable(model);
         table.setRowHeight(30);
@@ -70,19 +71,9 @@ public class ExpensesPanel extends JPanel {
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 10));
         btnPanel.setBackground(UIUtils.BG_DARK);
 
-        JButton addExpenseBtn = new JButton("Add Expense");
-        JButton addCategoryBtn = new JButton("Add Expense Category");
-        JButton deleteExpenseBtn = new JButton("Delete Expense");
-
-        Font btnFont = new Font("Segoe UI", Font.BOLD, 16);
-        for (JButton btn : new JButton[]{addExpenseBtn, addCategoryBtn, deleteExpenseBtn}) {
-            btn.setFont(btnFont);
-            btn.setBackground(Color.WHITE);
-            btn.setForeground(Color.BLACK);
-            btn.setPreferredSize(new Dimension(200, 45));
-            btn.setFocusPainted(false);
-            btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        }
+        JButton addExpenseBtn = makeButton("Add Expense", UIUtils.TEAL, Color.BLACK);
+        JButton addCategoryBtn = makeButton("Add Expense Category", UIUtils.TEAL, Color.BLACK);
+        JButton deleteExpenseBtn = makeButton("Delete Expense", new Color(255, 140, 0), Color.BLACK);
 
         btnPanel.add(addExpenseBtn);
         btnPanel.add(addCategoryBtn);
@@ -97,6 +88,28 @@ public class ExpensesPanel extends JPanel {
         refresh();
     }
 
+    private JButton makeButton(String text, Color bg, Color fg) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        btn.setBackground(bg);
+        btn.setForeground(fg);
+        btn.setPreferredSize(new Dimension(220, 45));
+        btn.setFocusPainted(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btn.setBackground(bg.darker());
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btn.setBackground(bg);
+            }
+        });
+        return btn;
+    }
+
     // ---------- DIALOG ----------
     private void openAddExpenseDialog() {
         JDialog dialog = new JDialog((Frame) null, "Add Expense", true);
@@ -109,13 +122,11 @@ public class ExpensesPanel extends JPanel {
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.anchor = GridBagConstraints.WEST;
 
-        // Labels
         JLabel catLabel = makeLabel("Category:");
         JLabel amtLabel = makeLabel("Amount:");
         JLabel descLabel = makeLabel("Description:");
         JLabel dateLabel = makeLabel("Date (yyyy-mm-dd):");
 
-        // Fields
         JTextField amountField = makeField();
         JTextField descField = makeField();
         JTextField dateField = makeField();
@@ -124,31 +135,20 @@ public class ExpensesPanel extends JPanel {
         JComboBox<String> categoryBox = new JComboBox<>();
         for (ExpenseCategory c : categories) categoryBox.addItem(c.getName());
 
-        // Layout form
         gbc.gridx = 0; gbc.gridy = 0; dialog.add(catLabel, gbc);
         gbc.gridx = 1; dialog.add(categoryBox, gbc);
-
         gbc.gridx = 0; gbc.gridy = 1; dialog.add(amtLabel, gbc);
         gbc.gridx = 1; dialog.add(amountField, gbc);
-
         gbc.gridx = 0; gbc.gridy = 2; dialog.add(descLabel, gbc);
         gbc.gridx = 1; dialog.add(descField, gbc);
-
         gbc.gridx = 0; gbc.gridy = 3; dialog.add(dateLabel, gbc);
         gbc.gridx = 1; dialog.add(dateField, gbc);
 
-        JButton saveBtn = new JButton("Save");
-        saveBtn.setBackground(UIUtils.TEAL);
-        saveBtn.setForeground(Color.BLACK);
-        saveBtn.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        saveBtn.setFocusPainted(false);
-        saveBtn.setPreferredSize(new Dimension(100, 40));
-
+        JButton saveBtn = makeButton("Save", UIUtils.TEAL, Color.BLACK);
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         dialog.add(saveBtn, gbc);
 
-        // Save Action
         saveBtn.addActionListener(e -> {
             try {
                 String categoryName = (String) categoryBox.getSelectedItem();
@@ -217,7 +217,7 @@ public class ExpensesPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Please select an expense to delete.");
             return;
         }
-        int id = (int) model.getValueAt(row, 0);
+        int id = expenseIds.get(row);
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Are you sure you want to delete this expense?", "Confirm Delete",
                 JOptionPane.YES_NO_OPTION);
@@ -230,14 +230,16 @@ public class ExpensesPanel extends JPanel {
     // ---------- REFRESH ----------
     private void refresh() {
         model.setRowCount(0);
+        expenseIds.clear();
+
         if (AppContext.getCurrentUser() == null) return;
 
         List<Expense> list = expenseService.getExpensesByUserId(AppContext.requireUserId());
         for (Expense e : list) {
+            expenseIds.add(e.getExpenseId());
             ExpenseCategory cat = categoryService.getExpenseCategoryById(e.getCategoryId());
             String catName = (cat != null) ? cat.getName() : "Unknown";
             model.addRow(new Object[]{
-                    e.getExpenseId(),
                     catName,
                     FormatUtils.inr(e.getAmount()),
                     e.getDescription(),

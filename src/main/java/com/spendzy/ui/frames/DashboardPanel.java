@@ -13,6 +13,8 @@ import com.spendzy.ui.utils.UIUtils;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.util.List;
 
 public class DashboardPanel extends JPanel {
@@ -50,7 +52,15 @@ public class DashboardPanel extends JPanel {
 
         add(cardsPanel, BorderLayout.CENTER);
 
-        refresh(); // initial load
+        // Refresh when shown on screen
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent e) {
+                refresh();
+            }
+        });
+
+        refresh(); // Initial load
     }
 
     private JLabel makeCard(JPanel parent, String title, String value) {
@@ -80,7 +90,7 @@ public class DashboardPanel extends JPanel {
         if (AppContext.getCurrentUser() == null) return;
         int userId = AppContext.requireUserId();
 
-        // Fetch data
+        // Fetch data fresh from DB
         List<Income> incomes = incomeService.getIncomesByUserId(userId);
         List<Expense> expenses = expenseService.getExpensesByUserId(userId);
         List<Budget> budgets = budgetService.getAllBudgetsByUser(userId);
@@ -90,16 +100,23 @@ public class DashboardPanel extends JPanel {
         double totalBudget = budgets.stream().mapToDouble(Budget::getAmountLimit).sum();
         double remaining = totalIncome - totalExpense;
 
+        // Debug print (optional)
+        System.out.printf("Dashboard Refresh → Income: %.2f | Expense: %.2f | Budget: %.2f | Remaining: %.2f%n",
+                totalIncome, totalExpense, totalBudget, remaining);
+
         totalIncomeLabel.setText(FormatUtils.inr(totalIncome));
         totalExpenseLabel.setText(FormatUtils.inr(totalExpense));
         totalBudgetLabel.setText(FormatUtils.inr(totalBudget));
-
-        // Dynamic color for remaining
         remainingLabel.setText(FormatUtils.inr(remaining));
+
+        // Change color of Remaining dynamically
         if (remaining >= 0) {
-            remainingLabel.setForeground(new Color(0, 150, 0)); // green
+            remainingLabel.setForeground(new Color(0, 150, 0)); // Green if positive
         } else {
-            remainingLabel.setForeground(Color.RED);
+            remainingLabel.setForeground(Color.RED); // Red if negative
         }
+
+        revalidate();
+        repaint();
     }
 }

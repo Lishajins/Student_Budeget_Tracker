@@ -13,6 +13,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class BudgetPanel extends JPanel {
@@ -20,6 +21,7 @@ public class BudgetPanel extends JPanel {
     private final ExpenseCategoryService categoryService = new ExpenseCategoryService();
     private JTable table;
     private DefaultTableModel model;
+    private final List<Integer> budgetIds = new ArrayList<>();
 
     public BudgetPanel() {
         setLayout(new BorderLayout(0, 20));
@@ -43,7 +45,7 @@ public class BudgetPanel extends JPanel {
         card.setPreferredSize(new Dimension(900, 400));
 
         // --- Table Setup ---
-        String[] cols = {"ID", "Category", "Limit (₹)", "Period"};
+        String[] cols = {"Category", "Limit (₹)", "Period"};
         model = new DefaultTableModel(cols, 0);
         table = new JTable(model);
         table.setRowHeight(30);
@@ -69,19 +71,9 @@ public class BudgetPanel extends JPanel {
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 10));
         btnPanel.setBackground(UIUtils.BG_DARK);
 
-        JButton addBudgetBtn = new JButton("Add Budget");
-        JButton updateBudgetBtn = new JButton("Update Budget");
-        JButton deleteBudgetBtn = new JButton("Delete Budget");
-
-        Font btnFont = new Font("Segoe UI", Font.BOLD, 16);
-        for (JButton btn : new JButton[]{addBudgetBtn, updateBudgetBtn, deleteBudgetBtn}) {
-            btn.setFont(btnFont);
-            btn.setBackground(Color.WHITE);
-            btn.setForeground(Color.BLACK);
-            btn.setPreferredSize(new Dimension(200, 45));
-            btn.setFocusPainted(false);
-            btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        }
+        JButton addBudgetBtn = makeButton("Add Budget", UIUtils.TEAL, Color.BLACK);
+        JButton updateBudgetBtn = makeButton("Update Budget", UIUtils.TEAL, Color.BLACK);
+        JButton deleteBudgetBtn = makeButton("Delete Budget", new Color(255, 140, 0), Color.BLACK);
 
         btnPanel.add(addBudgetBtn);
         btnPanel.add(updateBudgetBtn);
@@ -94,6 +86,24 @@ public class BudgetPanel extends JPanel {
         deleteBudgetBtn.addActionListener(e -> deleteSelectedBudget());
 
         refresh();
+    }
+
+    // ---------- BUTTON STYLE ----------
+    private JButton makeButton(String text, Color bg, Color fg) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        btn.setBackground(bg);
+        btn.setForeground(fg);
+        btn.setPreferredSize(new Dimension(220, 45));
+        btn.setFocusPainted(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) { btn.setBackground(bg.darker()); }
+            public void mouseExited(java.awt.event.MouseEvent evt) { btn.setBackground(bg); }
+        });
+        return btn;
     }
 
     // ---------- ADD BUDGET ----------
@@ -118,14 +128,12 @@ public class BudgetPanel extends JPanel {
 
         gbc.gridx = 0; gbc.gridy = 0; dialog.add(catLabel, gbc);
         gbc.gridx = 1; dialog.add(categoryBox, gbc);
-
         gbc.gridx = 0; gbc.gridy = 1; dialog.add(limitLabel, gbc);
         gbc.gridx = 1; dialog.add(limitField, gbc);
-
         gbc.gridx = 0; gbc.gridy = 2; dialog.add(periodLabel, gbc);
         gbc.gridx = 1; dialog.add(periodBox, gbc);
 
-        JButton saveBtn = makeButton("Save");
+        JButton saveBtn = makeButton("Save", UIUtils.TEAL, Color.BLACK);
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         dialog.add(saveBtn, gbc);
@@ -166,7 +174,7 @@ public class BudgetPanel extends JPanel {
             return;
         }
 
-        int id = (int) model.getValueAt(row, 0);
+        int id = budgetIds.get(row);
         Budget existing = budgetService.getBudgetById(id);
         if (existing == null) {
             JOptionPane.showMessageDialog(this, "Could not find selected budget.");
@@ -193,7 +201,7 @@ public class BudgetPanel extends JPanel {
         gbc.gridx = 0; gbc.gridy = 1; dialog.add(periodLabel, gbc);
         gbc.gridx = 1; dialog.add(periodBox, gbc);
 
-        JButton saveBtn = makeButton("Update");
+        JButton saveBtn = makeButton("Update", UIUtils.TEAL, Color.BLACK);
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         dialog.add(saveBtn, gbc);
@@ -225,7 +233,7 @@ public class BudgetPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Please select a budget to delete.");
             return;
         }
-        int id = (int) model.getValueAt(row, 0);
+        int id = budgetIds.get(row);
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Are you sure you want to delete this budget?", "Confirm Delete",
                 JOptionPane.YES_NO_OPTION);
@@ -261,27 +269,18 @@ public class BudgetPanel extends JPanel {
         return field;
     }
 
-    private JButton makeButton(String text) {
-        JButton btn = new JButton(text);
-        btn.setBackground(UIUtils.TEAL);
-        btn.setForeground(Color.BLACK);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        btn.setFocusPainted(false);
-        btn.setPreferredSize(new Dimension(120, 40));
-        return btn;
-    }
-
     // ---------- REFRESH ----------
     private void refresh() {
         model.setRowCount(0);
+        budgetIds.clear();
         if (AppContext.getCurrentUser() == null) return;
 
         List<Budget> list = budgetService.getAllBudgetsByUser(AppContext.requireUserId());
         for (Budget b : list) {
+            budgetIds.add(b.getBudgetId());
             ExpenseCategory cat = categoryService.getExpenseCategoryById(b.getCategoryId());
             String catName = (cat != null) ? cat.getName() : "Unknown";
             model.addRow(new Object[]{
-                    b.getBudgetId(),
                     catName,
                     FormatUtils.inr(b.getAmountLimit()),
                     b.getPeriod()

@@ -39,7 +39,7 @@ public class Sidebar extends JPanel {
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 25));
         bottomPanel.setBackground(UIUtils.BG_PANEL);
 
-        JButton logoutBtn = createSidebarButton("Logout", onNavigate, new Color(230, 70, 50), Color.WHITE);
+        JButton logoutBtn = createSidebarButton("Logout", onNavigate, new Color(230, 70, 50), Color.BLACK);
         bottomPanel.add(logoutBtn);
         add(bottomPanel, BorderLayout.SOUTH);
     }

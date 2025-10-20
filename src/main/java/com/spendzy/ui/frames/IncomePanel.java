@@ -13,6 +13,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class IncomePanel extends JPanel {
@@ -20,6 +21,7 @@ public class IncomePanel extends JPanel {
     private final IncomeCategoryService categoryService = new IncomeCategoryService();
     private JTable table;
     private DefaultTableModel model;
+    private final List<Integer> incomeIds = new ArrayList<>();
 
     public IncomePanel() {
         setLayout(new BorderLayout(0, 20));
@@ -43,7 +45,7 @@ public class IncomePanel extends JPanel {
         card.setPreferredSize(new Dimension(900, 400));
 
         // --- Table Setup ---
-        String[] cols = {"ID", "Category", "Amount (₹)", "Source", "Date"};
+        String[] cols = {"Category", "Amount (₹)", "Source", "Date"};
         model = new DefaultTableModel(cols, 0);
         table = new JTable(model);
         table.setRowHeight(30);
@@ -69,19 +71,9 @@ public class IncomePanel extends JPanel {
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 10));
         btnPanel.setBackground(UIUtils.BG_DARK);
 
-        JButton addIncomeBtn = new JButton("Add Income");
-        JButton addCategoryBtn = new JButton("Add Income Category");
-        JButton deleteIncomeBtn = new JButton("Delete Income");
-
-        Font btnFont = new Font("Segoe UI", Font.BOLD, 16);
-        for (JButton btn : new JButton[]{addIncomeBtn, addCategoryBtn, deleteIncomeBtn}) {
-            btn.setFont(btnFont);
-            btn.setBackground(Color.WHITE);
-            btn.setForeground(Color.BLACK);
-            btn.setPreferredSize(new Dimension(200, 45));
-            btn.setFocusPainted(false);
-            btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        }
+        JButton addIncomeBtn = makeButton("Add Income", UIUtils.TEAL, Color.BLACK);
+        JButton addCategoryBtn = makeButton("Add Income Category", UIUtils.TEAL, Color.BLACK);
+        JButton deleteIncomeBtn = makeButton("Delete Income", new Color(255, 140, 0), Color.BLACK);
 
         btnPanel.add(addIncomeBtn);
         btnPanel.add(addCategoryBtn);
@@ -96,6 +88,24 @@ public class IncomePanel extends JPanel {
         refresh();
     }
 
+    // ---------- BUTTON STYLE ----------
+    private JButton makeButton(String text, Color bg, Color fg) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        btn.setBackground(bg);
+        btn.setForeground(fg);
+        btn.setPreferredSize(new Dimension(220, 45));
+        btn.setFocusPainted(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) { btn.setBackground(bg.darker()); }
+            public void mouseExited(java.awt.event.MouseEvent evt) { btn.setBackground(bg); }
+        });
+        return btn;
+    }
+
     // ---------- ADD INCOME ----------
     private void openAddIncomeDialog() {
         JDialog dialog = new JDialog((Frame) null, "Add Income", true);
@@ -108,13 +118,11 @@ public class IncomePanel extends JPanel {
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.anchor = GridBagConstraints.WEST;
 
-        // Labels
         JLabel catLabel = makeLabel("Category:");
         JLabel amtLabel = makeLabel("Amount:");
         JLabel nameLabel = makeLabel("Source:");
         JLabel dateLabel = makeLabel("Date (yyyy-mm-dd):");
 
-        // Fields
         JTextField amountField = makeField();
         JTextField nameField = makeField();
         JTextField dateField = makeField();
@@ -123,31 +131,20 @@ public class IncomePanel extends JPanel {
         JComboBox<String> categoryBox = new JComboBox<>();
         for (IncomeCategory c : categories) categoryBox.addItem(c.getName());
 
-        // Layout form
         gbc.gridx = 0; gbc.gridy = 0; dialog.add(catLabel, gbc);
         gbc.gridx = 1; dialog.add(categoryBox, gbc);
-
         gbc.gridx = 0; gbc.gridy = 1; dialog.add(amtLabel, gbc);
         gbc.gridx = 1; dialog.add(amountField, gbc);
-
         gbc.gridx = 0; gbc.gridy = 2; dialog.add(nameLabel, gbc);
         gbc.gridx = 1; dialog.add(nameField, gbc);
-
         gbc.gridx = 0; gbc.gridy = 3; dialog.add(dateLabel, gbc);
         gbc.gridx = 1; dialog.add(dateField, gbc);
 
-        JButton saveBtn = new JButton("Save");
-        saveBtn.setBackground(UIUtils.TEAL);
-        saveBtn.setForeground(Color.BLACK);
-        saveBtn.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        saveBtn.setFocusPainted(false);
-        saveBtn.setPreferredSize(new Dimension(100, 40));
-
+        JButton saveBtn = makeButton("Save", UIUtils.TEAL, Color.BLACK);
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         dialog.add(saveBtn, gbc);
 
-        // Save Action
         saveBtn.addActionListener(e -> {
             try {
                 String categoryName = (String) categoryBox.getSelectedItem();
@@ -201,11 +198,8 @@ public class IncomePanel extends JPanel {
         if (name != null && !name.trim().isEmpty()) {
             IncomeCategory category = new IncomeCategory(0, name.trim(), AppContext.requireUserId());
             boolean ok = categoryService.addCategory(category);
-            if (ok) {
-                JOptionPane.showMessageDialog(this, "Income category added successfully!");
-            } else {
-                JOptionPane.showMessageDialog(this, "Failed to add category.");
-            }
+            if (ok) JOptionPane.showMessageDialog(this, "Income category added successfully!");
+            else JOptionPane.showMessageDialog(this, "Failed to add category.");
         }
     }
 
@@ -216,7 +210,7 @@ public class IncomePanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Please select an income to delete.");
             return;
         }
-        int id = (int) model.getValueAt(row, 0);
+        int id = incomeIds.get(row);
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Are you sure you want to delete this income?", "Confirm Delete",
                 JOptionPane.YES_NO_OPTION);
@@ -229,14 +223,15 @@ public class IncomePanel extends JPanel {
     // ---------- REFRESH ----------
     private void refresh() {
         model.setRowCount(0);
+        incomeIds.clear();
         if (AppContext.getCurrentUser() == null) return;
 
         List<Income> list = incomeService.getIncomesByUserId(AppContext.requireUserId());
         for (Income i : list) {
+            incomeIds.add(i.getIncomeId());
             IncomeCategory cat = categoryService.getCategoryById(i.getCategoryId());
             String catName = (cat != null) ? cat.getName() : "Unknown";
             model.addRow(new Object[]{
-                    i.getIncomeId(),
                     catName,
                     FormatUtils.inr(i.getAmount()),
                     i.getIncomeName(),

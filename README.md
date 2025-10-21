@@ -134,6 +134,3 @@ java -jar target/Spendzy.jar
 * Make sure your `mysql-connector-j` dependency is in your `pom.xml`.
 * For any “Table doesn’t exist” errors, check schema spelling and run the SQL above again.
 
----
-
-Would you like me to add **a diagram (schema ERD)** to this README too — like a mini visual showing table relationships? It’ll make your project report look pro-level.
